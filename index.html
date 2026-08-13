@@ -1,0 +1,683 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Buku Kas</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,600;0,9..144,700;1,9..144,500&family=IBM+Plex+Mono:wght@400;500;600&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --cover: #1B3A2F;
+    --cover-dark: #12281F;
+    --paper: #F7F3E8;
+    --paper-line: #DCD2B8;
+    --ink: #22322B;
+    --ink-soft: #5B6B60;
+    --gold: #B8862E;
+    --gold-soft: #E9D9AE;
+    --brick: #A0463A;
+    --brick-soft: #EFD9D3;
+    --margin-red: #B5544A;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    background: var(--cover);
+    background-image:
+      radial-gradient(ellipse at top, rgba(255,255,255,0.05), transparent 60%),
+      repeating-linear-gradient(90deg, rgba(0,0,0,0.05) 0 1px, transparent 1px 3px);
+    min-height:100vh;
+    font-family:'Inter',sans-serif;
+    color:var(--ink);
+    padding:28px 14px 60px;
+  }
+  .book{
+    max-width:920px;
+    margin:0 auto;
+    background:var(--paper);
+    border-radius:6px;
+    box-shadow: 0 30px 60px -20px rgba(0,0,0,0.5), 0 0 0 1px rgba(0,0,0,0.08);
+    overflow:hidden;
+    position:relative;
+  }
+  .book::before{
+    content:"";
+    position:absolute; top:0; bottom:0; left:64px;
+    width:2px; background:var(--margin-red); opacity:0.35;
+  }
+  header.title-block{
+    padding:36px 40px 22px 84px;
+    border-bottom:2px solid var(--ink);
+    position:relative;
+  }
+  .eyebrow{
+    font-family:'IBM Plex Mono',monospace;
+    font-size:11px; letter-spacing:.18em; text-transform:uppercase;
+    color:var(--ink-soft); margin:0 0 6px;
+  }
+  h1{
+    font-family:'Fraunces',serif;
+    font-weight:700;
+    font-size:clamp(30px,5vw,42px);
+    margin:0;
+    letter-spacing:-0.01em;
+  }
+  .subtitle{
+    font-size:14px; color:var(--ink-soft); margin-top:6px;
+  }
+
+  .balance-strip{
+    display:flex; flex-wrap:wrap; gap:0;
+    padding:0 40px 0 84px;
+    border-bottom:1px solid var(--paper-line);
+  }
+  .balance-main{
+    flex:1 1 260px; padding:22px 24px 22px 0;
+    border-right:1px solid var(--paper-line);
+  }
+  .balance-main .label{ font-family:'IBM Plex Mono',monospace; font-size:11px; letter-spacing:.12em; text-transform:uppercase; color:var(--ink-soft);}
+  .balance-main .value{
+    font-family:'Fraunces',serif; font-weight:600; font-size:clamp(28px,4.5vw,40px);
+    margin-top:4px;
+  }
+  .balance-main .value.neg{ color:var(--brick); }
+  .stat{
+    flex:1 1 160px; padding:22px 24px; border-right:1px solid var(--paper-line);
+  }
+  .stat:last-child{ border-right:none; }
+  .stat .label{ font-family:'IBM Plex Mono',monospace; font-size:11px; letter-spacing:.1em; text-transform:uppercase; color:var(--ink-soft);}
+  .stat .value{ font-family:'IBM Plex Mono',monospace; font-weight:600; font-size:20px; margin-top:6px;}
+  .stat.masuk .value{ color:var(--gold); }
+  .stat.keluar .value{ color:var(--brick); }
+
+  .controls{
+    display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:10px;
+    padding:18px 40px 12px 84px;
+  }
+  .controls select{
+    font-family:'Inter',sans-serif; font-size:13px; padding:7px 10px; border:1px solid var(--paper-line);
+    background:#fff; border-radius:4px; color:var(--ink); cursor:pointer;
+  }
+  .add-btn{
+    font-family:'Inter',sans-serif; font-weight:600; font-size:13px;
+    background:var(--cover); color:var(--paper); border:none; padding:9px 16px;
+    border-radius:4px; cursor:pointer; letter-spacing:.02em;
+  }
+  .add-btn:hover{ background:var(--cover-dark); }
+
+  form.entry-form{
+    margin:0 40px 18px 84px;
+    background:#fff;
+    border:1px solid var(--paper-line);
+    border-radius:6px;
+    padding:16px;
+    display:none;
+    grid-template-columns: 110px 100px 1fr 1fr 130px auto;
+    gap:10px;
+    align-items:end;
+  }
+  form.entry-form.open{ display:grid; }
+  form.entry-form .field{ display:flex; flex-direction:column; gap:4px; }
+  form.entry-form label{ font-size:10px; text-transform:uppercase; letter-spacing:.08em; color:var(--ink-soft); font-family:'IBM Plex Mono',monospace;}
+  form.entry-form input, form.entry-form select{
+    font-family:'Inter',sans-serif; font-size:13px; padding:7px 8px; border:1px solid var(--paper-line); border-radius:4px; background:var(--paper);
+  }
+  .type-toggle{ display:flex; border:1px solid var(--paper-line); border-radius:4px; overflow:hidden;}
+  .type-toggle button{
+    flex:1; border:none; background:var(--paper); padding:7px 0; font-size:12px; font-weight:600; cursor:pointer; font-family:'Inter',sans-serif;
+  }
+  .type-toggle button.active.in{ background:var(--gold-soft); color:#7a5a13;}
+  .type-toggle button.active.out{ background:var(--brick-soft); color:var(--brick);}
+  .save-btn{
+    background:var(--gold); color:#fff; border:none; border-radius:4px; padding:8px 14px; font-weight:600; font-size:13px; cursor:pointer; font-family:'Inter',sans-serif;
+  }
+  .save-btn:hover{ filter:brightness(0.95); }
+
+  .ledger-wrap{ padding:0 40px 32px 84px; overflow-x:auto; }
+  table{ width:100%; border-collapse:collapse; font-size:13.5px; min-width:640px;}
+  thead th{
+    text-align:left; font-family:'IBM Plex Mono',monospace; font-size:10.5px; letter-spacing:.08em; text-transform:uppercase;
+    color:var(--ink-soft); border-bottom:1.5px solid var(--ink); padding:8px 8px;
+  }
+  thead th.num{ text-align:right; }
+  tbody tr{ border-bottom:1px dashed var(--paper-line); }
+  tbody tr:hover{ background:rgba(0,0,0,0.02); }
+  tbody td{ padding:9px 8px; vertical-align:top; }
+  td.tanggal{ font-family:'IBM Plex Mono',monospace; font-size:12.5px; color:var(--ink-soft); white-space:nowrap;}
+  td.ket .cat{ font-weight:600; }
+  td.ket .note{ display:block; color:var(--ink-soft); font-size:12px; margin-top:1px;}
+  td.num{ text-align:right; font-family:'IBM Plex Mono',monospace; white-space:nowrap;}
+  td.masuk{ color:var(--gold); }
+  td.keluar{ color:var(--brick); }
+  td.saldo{ font-weight:600; }
+  td.del{ text-align:center; width:28px; }
+  td.del button{
+    border:none; background:none; color:var(--ink-soft); cursor:pointer; font-size:15px; line-height:1; opacity:0.4;
+  }
+  tr:hover td.del button{ opacity:0.9; }
+  td.del button:hover{ color:var(--brick); }
+
+  .empty{ padding:40px 0; text-align:center; color:var(--ink-soft); font-size:13.5px; }
+
+  footer.foot{
+    padding:16px 40px 26px 84px; border-top:2px solid var(--ink);
+    font-family:'IBM Plex Mono',monospace; font-size:11px; color:var(--ink-soft);
+    display:flex; justify-content:space-between; flex-wrap:wrap; gap:8px;
+  }
+  .foot-actions a{ color:var(--ink-soft); text-decoration:underline; cursor:pointer; }
+  .foot-actions a:hover{ color:var(--ink); }
+
+  /* Lock screen */
+  .lock-screen{
+    max-width:420px; margin:8vh auto 0;
+    background:var(--paper); border-radius:6px;
+    box-shadow: 0 30px 60px -20px rgba(0,0,0,0.5), 0 0 0 1px rgba(0,0,0,0.08);
+    padding:40px 36px; text-align:center;
+  }
+  .lock-icon{
+    width:44px; height:44px; margin:0 auto 18px; color:var(--cover);
+  }
+  .lock-screen h2{
+    font-family:'Fraunces',serif; font-weight:700; font-size:24px; margin:0 0 6px;
+  }
+  .lock-screen p.desc{ font-size:13px; color:var(--ink-soft); margin:0 0 22px; line-height:1.5;}
+  .lock-screen input[type="password"]{
+    width:100%; font-family:'IBM Plex Mono',monospace; font-size:15px; letter-spacing:.05em;
+    padding:11px 12px; border:1px solid var(--paper-line); border-radius:4px; background:#fff;
+    text-align:center; margin-bottom:10px;
+  }
+  .lock-screen .save-btn{ width:100%; padding:11px 0; font-size:14px; }
+  .lock-error{ color:var(--brick); font-size:12.5px; margin:8px 0 0; min-height:16px; }
+  .lock-links{ margin-top:18px; font-size:11.5px; }
+  .lock-links a{ color:var(--ink-soft); text-decoration:underline; cursor:pointer; }
+  .lock-links a:hover{ color:var(--brick); }
+  #appBook{ display:none; }
+  .header-actions{ position:absolute; top:36px; right:40px; }
+  .header-actions a{ font-family:'IBM Plex Mono',monospace; font-size:11px; color:var(--ink-soft); text-decoration:underline; cursor:pointer; }
+  .header-actions a:hover{ color:var(--ink); }
+  @media (max-width:640px){
+    .book::before{ left:22px; }
+    header.title-block, .balance-strip, .controls, .ledger-wrap, footer.foot{ padding-left:32px; padding-right:20px; }
+    form.entry-form{ margin-left:32px; margin-right:20px; grid-template-columns:1fr 1fr; }
+    form.entry-form .field:nth-child(5){ grid-column:1/-1; }
+  }
+</style>
+</head>
+<body>
+
+<div class="lock-screen" id="lockScreen">
+  <svg class="lock-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+    <rect x="4" y="10" width="16" height="10" rx="2"/>
+    <path d="M8 10V7a4 4 0 0 1 8 0v3"/>
+  </svg>
+  <h2 id="lockTitle">Masuk ke Buku Kas</h2>
+  <p class="desc" id="lockDesc">Masukkan kata sandi untuk membuka catatan keuanganmu.</p>
+  <input type="password" id="lockPassword" placeholder="Kata sandi" autocomplete="off">
+  <input type="password" id="lockPasswordConfirm" placeholder="Ulangi kata sandi" autocomplete="off" style="display:none;">
+  <button class="save-btn" id="lockSubmit">Buka</button>
+  <p class="lock-error" id="lockError"></p>
+  <p class="lock-links" id="lockLinks" style="display:none;">
+    <a id="forgotBtn">Lupa kata sandi? Hapus semua data</a>
+  </p>
+</div>
+
+<div class="book" id="appBook">
+  <header class="title-block">
+    <p class="eyebrow">Catatan Pribadi</p>
+    <h1>Buku Kas</h1>
+    <p class="subtitle">Pantau uang masuk dan keluar kamu di satu tempat.</p>
+    <div class="header-actions"><a id="lockBtn">Kunci</a></div>
+  </header>
+
+  <div class="balance-strip">
+    <div class="balance-main">
+      <div class="label">Saldo saat ini</div>
+      <div class="value" id="saldoTotal">Rp 0</div>
+    </div>
+    <div class="stat masuk">
+      <div class="label">Total Masuk</div>
+      <div class="value" id="totalMasuk">Rp 0</div>
+    </div>
+    <div class="stat keluar">
+      <div class="label">Total Keluar</div>
+      <div class="value" id="totalKeluar">Rp 0</div>
+    </div>
+  </div>
+
+  <div class="controls">
+    <select id="filterBulan"></select>
+    <button class="add-btn" id="toggleForm">+ Catat Transaksi</button>
+  </div>
+
+  <form class="entry-form" id="entryForm">
+    <div class="field">
+      <label>Tanggal</label>
+      <input type="date" id="fTanggal" required>
+    </div>
+    <div class="field">
+      <label>Jenis</label>
+      <div class="type-toggle">
+        <button type="button" class="active in" id="btnMasuk">Masuk</button>
+        <button type="button" class="out" id="btnKeluar">Keluar</button>
+      </div>
+    </div>
+    <div class="field">
+      <label>Kategori</label>
+      <select id="fKategori"></select>
+    </div>
+    <div class="field">
+      <label>Keterangan</label>
+      <input type="text" id="fCatatan" placeholder="opsional">
+    </div>
+    <div class="field">
+      <label>Jumlah (Rp)</label>
+      <input type="number" id="fJumlah" min="0" step="1" placeholder="0" required>
+    </div>
+    <div class="field">
+      <button type="submit" class="save-btn">Simpan</button>
+    </div>
+  </form>
+
+  <div class="ledger-wrap">
+    <table id="ledgerTable">
+      <thead>
+        <tr>
+          <th>Tanggal</th>
+          <th>Keterangan</th>
+          <th class="num">Masuk</th>
+          <th class="num">Keluar</th>
+          <th class="num">Saldo</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody id="ledgerBody"></tbody>
+    </table>
+    <div class="empty" id="emptyState" style="display:none;">Belum ada catatan. Klik "Catat Transaksi" untuk mulai.</div>
+  </div>
+
+  <footer class="foot">
+    <span id="jumlahEntri">0 catatan</span>
+    <span class="foot-actions">
+      <a href="#" id="exportBtn">Unduh Backup</a> ·
+      <a href="#" id="importBtn">Impor Backup</a> ·
+      <a href="#" id="changePassBtn">Ubah Kata Sandi</a>
+      <input type="file" id="importFile" accept="application/json" style="display:none;">
+    </span>
+  </footer>
+</div>
+
+<script>
+const CAT_MASUK = ["Gaji","Bonus/THR","Transfer Masuk","Hasil Jual","Lainnya"];
+const CAT_KELUAR = ["Makan & Minum","Transportasi","Belanja","Tagihan & Cicilan","Hiburan","Kesehatan","Sumbangan/DKM","Lainnya"];
+
+let transactions = [];
+let currentType = "in";
+let editingFilterMonth = "all";
+
+const $ = (id) => document.getElementById(id);
+
+function formatRupiah(n){
+  const sign = n < 0 ? "-" : "";
+  return sign + "Rp " + Math.abs(Math.round(n)).toLocaleString("id-ID");
+}
+
+function monthKey(dateStr){
+  return dateStr ? dateStr.slice(0,7) : "";
+}
+
+function monthLabel(key){
+  if(key === "all") return "Semua Bulan";
+  const [y,m] = key.split("-");
+  const names = ["Januari","Februari","Maret","April","Mei","Juni","Juli","Agustus","September","Oktober","November","Desember"];
+  return names[parseInt(m,10)-1] + " " + y;
+}
+
+function populateKategori(){
+  const sel = $("fKategori");
+  sel.innerHTML = "";
+  const list = currentType === "in" ? CAT_MASUK : CAT_KELUAR;
+  list.forEach(c=>{
+    const opt = document.createElement("option");
+    opt.value = c; opt.textContent = c;
+    sel.appendChild(opt);
+  });
+}
+
+function setType(type){
+  currentType = type;
+  $("btnMasuk").classList.toggle("active", type==="in");
+  $("btnKeluar").classList.toggle("active", type==="out");
+  populateKategori();
+}
+
+function updateFilterOptions(){
+  const sel = $("filterBulan");
+  const prev = sel.value || "all";
+  const keys = Array.from(new Set(transactions.map(t=>monthKey(t.date)))).filter(Boolean).sort().reverse();
+  sel.innerHTML = "";
+  const allOpt = document.createElement("option");
+  allOpt.value = "all"; allOpt.textContent = "Semua Bulan";
+  sel.appendChild(allOpt);
+  keys.forEach(k=>{
+    const opt = document.createElement("option");
+    opt.value = k; opt.textContent = monthLabel(k);
+    sel.appendChild(opt);
+  });
+  sel.value = keys.includes(prev) || prev==="all" ? prev : "all";
+}
+
+function render(){
+  updateFilterOptions();
+  const filter = $("filterBulan").value || "all";
+
+  const sorted = [...transactions].sort((a,b)=>{
+    if(a.date === b.date) return a.createdAt - b.createdAt;
+    return a.date < b.date ? -1 : 1;
+  });
+
+  let running = 0;
+  const rows = sorted.map(t=>{
+    running += t.type === "in" ? t.amount : -t.amount;
+    return {...t, saldo: running};
+  });
+
+  const totalMasukAll = sorted.filter(t=>t.type==="in").reduce((s,t)=>s+t.amount,0);
+  const totalKeluarAll = sorted.filter(t=>t.type==="out").reduce((s,t)=>s+t.amount,0);
+  const saldoAll = totalMasukAll - totalKeluarAll;
+
+  $("totalMasuk").textContent = formatRupiah(totalMasukAll);
+  $("totalKeluar").textContent = formatRupiah(totalKeluarAll);
+  const saldoEl = $("saldoTotal");
+  saldoEl.textContent = formatRupiah(saldoAll);
+  saldoEl.classList.toggle("neg", saldoAll < 0);
+
+  const visible = filter === "all" ? rows : rows.filter(r=>monthKey(r.date)===filter);
+  const tbody = $("ledgerBody");
+  tbody.innerHTML = "";
+
+  if(visible.length === 0){
+    $("emptyState").style.display = "block";
+  } else {
+    $("emptyState").style.display = "none";
+    [...visible].reverse().forEach(r=>{
+      const tr = document.createElement("tr");
+      tr.innerHTML = `
+        <td class="tanggal">${formatTanggalPendek(r.date)}</td>
+        <td class="ket"><span class="cat">${escapeHtml(r.category)}</span>${r.note ? `<span class="note">${escapeHtml(r.note)}</span>` : ""}</td>
+        <td class="num masuk">${r.type==="in" ? formatRupiah(r.amount) : ""}</td>
+        <td class="num keluar">${r.type==="out" ? formatRupiah(r.amount) : ""}</td>
+        <td class="num saldo">${formatRupiah(r.saldo)}</td>
+        <td class="del"><button data-id="${r.id}" title="Hapus">✕</button></td>
+      `;
+      tbody.appendChild(tr);
+    });
+  }
+
+  $("jumlahEntri").textContent = `${transactions.length} catatan`;
+
+  tbody.querySelectorAll("button[data-id]").forEach(btn=>{
+    btn.addEventListener("click", ()=> deleteTransaction(btn.dataset.id));
+  });
+}
+
+function formatTanggalPendek(dateStr){
+  if(!dateStr) return "-";
+  const d = new Date(dateStr + "T00:00:00");
+  return d.toLocaleDateString("id-ID", {day:"2-digit", month:"short", year:"2-digit"});
+}
+
+function escapeHtml(s){
+  const div = document.createElement("div");
+  div.textContent = s || "";
+  return div.innerHTML;
+}
+
+/* ---------- Enkripsi (AES-256-GCM + PBKDF2) ---------- */
+const SALT_KEY = "bukukas_salt";
+const VAULT_KEY = "bukukas_vault";
+let sessionKey = null; // CryptoKey aktif selama sesi terbuka
+
+function bufToB64(buf){ return btoa(String.fromCharCode(...new Uint8Array(buf))); }
+function b64ToBuf(b64){ return Uint8Array.from(atob(b64), c=>c.charCodeAt(0)); }
+
+async function deriveKey(password, saltB64){
+  const enc = new TextEncoder();
+  const salt = b64ToBuf(saltB64);
+  const keyMaterial = await crypto.subtle.importKey("raw", enc.encode(password), {name:"PBKDF2"}, false, ["deriveKey"]);
+  return crypto.subtle.deriveKey(
+    {name:"PBKDF2", salt, iterations:150000, hash:"SHA-256"},
+    keyMaterial,
+    {name:"AES-GCM", length:256},
+    false,
+    ["encrypt","decrypt"]
+  );
+}
+
+async function encryptJSON(key, obj){
+  const iv = crypto.getRandomValues(new Uint8Array(12));
+  const enc = new TextEncoder();
+  const ciphertext = await crypto.subtle.encrypt({name:"AES-GCM", iv}, key, enc.encode(JSON.stringify(obj)));
+  return { iv: bufToB64(iv), data: bufToB64(ciphertext) };
+}
+
+async function decryptJSON(key, payload){
+  const iv = b64ToBuf(payload.iv);
+  const data = b64ToBuf(payload.data);
+  const plain = await crypto.subtle.decrypt({name:"AES-GCM", iv}, key, data);
+  return JSON.parse(new TextDecoder().decode(plain));
+}
+
+function hasAccount(){
+  return !!localStorage.getItem(SALT_KEY);
+}
+
+async function saveTransactions(){
+  if(!sessionKey) return;
+  try{
+    const payload = await encryptJSON(sessionKey, transactions);
+    localStorage.setItem(VAULT_KEY, JSON.stringify(payload));
+  }catch(e){
+    console.error("Gagal menyimpan:", e);
+  }
+}
+
+/* ---------- Layar kunci ---------- */
+function showLock(mode){
+  $("appBook").style.display = "none";
+  $("lockScreen").style.display = "block";
+  $("lockPassword").value = "";
+  $("lockPasswordConfirm").value = "";
+  $("lockError").textContent = "";
+  $("lockPassword").focus();
+  if(mode === "setup"){
+    $("lockTitle").textContent = "Buat Kata Sandi";
+    $("lockDesc").textContent = "Ini kali pertama kamu membuka Buku Kas di perangkat ini. Buat kata sandi untuk mengenkripsi catatanmu — jika lupa, data tidak bisa dipulihkan.";
+    $("lockPasswordConfirm").style.display = "block";
+    $("lockLinks").style.display = "none";
+    $("lockSubmit").textContent = "Buat & Buka";
+  } else {
+    $("lockTitle").textContent = "Masuk ke Buku Kas";
+    $("lockDesc").textContent = "Masukkan kata sandi untuk membuka catatan keuanganmu.";
+    $("lockPasswordConfirm").style.display = "none";
+    $("lockLinks").style.display = "block";
+    $("lockSubmit").textContent = "Buka";
+  }
+}
+
+function showApp(){
+  $("lockScreen").style.display = "none";
+  $("appBook").style.display = "block";
+}
+
+async function handleLockSubmit(){
+  const pw = $("lockPassword").value;
+  if(!pw || pw.length < 4){
+    $("lockError").textContent = "Kata sandi minimal 4 karakter.";
+    return;
+  }
+  if(!hasAccount()){
+    const confirm = $("lockPasswordConfirm").value;
+    if(pw !== confirm){
+      $("lockError").textContent = "Konfirmasi kata sandi tidak sama.";
+      return;
+    }
+    const salt = crypto.getRandomValues(new Uint8Array(16));
+    localStorage.setItem(SALT_KEY, bufToB64(salt));
+    sessionKey = await deriveKey(pw, bufToB64(salt));
+    transactions = [];
+    await saveTransactions();
+    populateKategori();
+    showApp();
+    render();
+  } else {
+    const saltB64 = localStorage.getItem(SALT_KEY);
+    const key = await deriveKey(pw, saltB64);
+    try{
+      const vaultRaw = localStorage.getItem(VAULT_KEY);
+      const decoded = vaultRaw ? await decryptJSON(key, JSON.parse(vaultRaw)) : [];
+      sessionKey = key;
+      transactions = decoded;
+      populateKategori();
+      showApp();
+      render();
+    }catch(e){
+      $("lockError").textContent = "Kata sandi salah. Coba lagi.";
+    }
+  }
+}
+
+$("lockSubmit").addEventListener("click", handleLockSubmit);
+$("lockPassword").addEventListener("keydown", (e)=>{ if(e.key==="Enter") { if($("lockPasswordConfirm").style.display==="none") handleLockSubmit(); else $("lockPasswordConfirm").focus(); }});
+$("lockPasswordConfirm").addEventListener("keydown", (e)=>{ if(e.key==="Enter") handleLockSubmit(); });
+
+$("forgotBtn").addEventListener("click", (e)=>{
+  e.preventDefault();
+  if(confirm("Ini akan MENGHAPUS SELURUH catatan di perangkat ini secara permanen karena tidak bisa didekripsi tanpa kata sandi lama. Lanjutkan?")){
+    if(confirm("Yakin? Tindakan ini tidak bisa dibatalkan.")){
+      localStorage.removeItem(SALT_KEY);
+      localStorage.removeItem(VAULT_KEY);
+      sessionKey = null;
+      showLock("setup");
+    }
+  }
+});
+
+$("lockBtn").addEventListener("click", ()=>{
+  sessionKey = null;
+  transactions = [];
+  showLock("login");
+});
+
+$("changePassBtn").addEventListener("click", async (e)=>{
+  e.preventDefault();
+  if(!sessionKey) return;
+  const oldPw = prompt("Masukkan kata sandi lama untuk verifikasi:");
+  if(oldPw === null) return;
+  const saltB64 = localStorage.getItem(SALT_KEY);
+  try{
+    const oldKey = await deriveKey(oldPw, saltB64);
+    const vaultRaw = localStorage.getItem(VAULT_KEY);
+    await decryptJSON(oldKey, JSON.parse(vaultRaw)); // verifikasi
+  }catch(err){
+    alert("Kata sandi lama salah.");
+    return;
+  }
+  const newPw = prompt("Masukkan kata sandi baru (minimal 4 karakter):");
+  if(!newPw || newPw.length < 4){ alert("Dibatalkan."); return; }
+  const newSalt = crypto.getRandomValues(new Uint8Array(16));
+  localStorage.setItem(SALT_KEY, bufToB64(newSalt));
+  sessionKey = await deriveKey(newPw, bufToB64(newSalt));
+  await saveTransactions();
+  alert("Kata sandi berhasil diubah.");
+});
+
+async function deleteTransaction(id){
+  transactions = transactions.filter(t=>t.id !== id);
+  await saveTransactions();
+  render();
+}
+
+function todayStr(){
+  const d = new Date();
+  return d.toISOString().slice(0,10);
+}
+
+$("toggleForm").addEventListener("click", ()=>{
+  const form = $("entryForm");
+  const opening = !form.classList.contains("open");
+  form.classList.toggle("open");
+  if(opening){
+    $("fTanggal").value = todayStr();
+    setType("in");
+    $("fJumlah").focus();
+  }
+});
+
+$("btnMasuk").addEventListener("click", ()=> setType("in"));
+$("btnKeluar").addEventListener("click", ()=> setType("out"));
+$("filterBulan").addEventListener("change", render);
+
+$("entryForm").addEventListener("submit", async (e)=>{
+  e.preventDefault();
+  const amount = parseFloat($("fJumlah").value);
+  if(!amount || amount <= 0) return;
+  const entry = {
+    id: "t_" + Date.now() + "_" + Math.random().toString(36).slice(2,7),
+    date: $("fTanggal").value || todayStr(),
+    type: currentType,
+    category: $("fKategori").value,
+    note: $("fCatatan").value.trim(),
+    amount: amount,
+    createdAt: Date.now()
+  };
+  transactions.push(entry);
+  await saveTransactions();
+  $("fJumlah").value = "";
+  $("fCatatan").value = "";
+  $("fJumlah").focus();
+  render();
+});
+
+$("exportBtn").addEventListener("click", (e)=>{
+  e.preventDefault();
+  const blob = new Blob([JSON.stringify(transactions, null, 2)], {type:"application/json"});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = "buku-kas-backup-" + todayStr() + ".json";
+  a.click();
+  URL.revokeObjectURL(url);
+});
+
+$("importBtn").addEventListener("click", (e)=>{
+  e.preventDefault();
+  $("importFile").click();
+});
+
+$("importFile").addEventListener("change", (e)=>{
+  const file = e.target.files[0];
+  if(!file) return;
+  const reader = new FileReader();
+  reader.onload = async (ev)=>{
+    try{
+      const data = JSON.parse(ev.target.result);
+      if(!Array.isArray(data)) throw new Error("format tidak sesuai");
+      const existingIds = new Set(transactions.map(t=>t.id));
+      const merged = [...transactions, ...data.filter(t=>!existingIds.has(t.id))];
+      transactions = merged;
+      await saveTransactions();
+      render();
+      alert("Backup berhasil diimpor.");
+    }catch(err){
+      alert("Gagal membaca file backup. Pastikan file JSON hasil unduhan dari Buku Kas.");
+    }
+    $("importFile").value = "";
+  };
+  reader.readAsText(file);
+});
+
+showLock(hasAccount() ? "login" : "setup");
+</script>
+</body>
+</html>
