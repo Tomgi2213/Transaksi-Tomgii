@@ -104,6 +104,32 @@
   }
   .card-title{ font-size:14.5px; font-weight:700; }
   .card-sub{ font-size:22px; font-weight:800; margin-top:2px; letter-spacing:-0.01em; }
+  .chart-head{ display:flex; align-items:flex-start; justify-content:space-between; gap:10px; }
+  .period-toggle{ display:flex; background:var(--gray-tint); border-radius:999px; padding:3px; flex-shrink:0; }
+  .period-toggle button{
+    border:none; background:transparent; padding:6px 12px; border-radius:999px; font-family:'Plus Jakarta Sans',sans-serif;
+    font-weight:700; font-size:11.5px; color:var(--ink-soft); cursor:pointer;
+  }
+  .period-toggle button.active{ background:#fff; color:var(--mint-deep); box-shadow:0 2px 6px rgba(0,0,0,0.08); }
+
+  .day-nav{ display:flex; align-items:center; justify-content:space-between; }
+  .day-nav button{
+    width:32px; height:32px; border-radius:50%; border:none; background:var(--gray-tint); color:var(--ink);
+    display:flex; align-items:center; justify-content:center; cursor:pointer; flex-shrink:0;
+  }
+  .day-nav button svg{ width:15px; height:15px; }
+  .day-nav-label{ display:flex; flex-direction:column; align-items:center; gap:4px; }
+  .day-nav-label span:first-child{ font-weight:800; font-size:14.5px; }
+  .today-pill{
+    display:none; font-size:10px; font-weight:700; color:var(--mint-deep); background:var(--mint-tint);
+    padding:2px 9px; border-radius:999px;
+  }
+  .today-pill.show{ display:inline-block; }
+  .detail-toggle{
+    width:100%; margin-top:14px; padding:11px 0; border:1.5px dashed var(--gray-tint); background:none; border-radius:12px;
+    font-family:'Plus Jakarta Sans',sans-serif; font-weight:700; font-size:12.5px; color:var(--mint-deep); cursor:pointer;
+  }
+  .detail-toggle:hover{ background:var(--mint-tint); }
 
   /* Weekly chart */
   .chart-wrap{ display:flex; align-items:flex-end; gap:10px; height:150px; margin-top:18px; }
@@ -276,12 +302,31 @@
   </div>
 
   <div class="card">
-    <div class="card-title" id="weeklyTitle">Pengeluaran minggu ini</div>
-    <div class="card-sub" id="weeklyAmount">Rp 0</div>
+    <div class="chart-head">
+      <div>
+        <div class="card-title" id="weeklyTitle">Pengeluaran hari ini</div>
+        <div class="card-sub" id="weeklyAmount">Rp 0</div>
+      </div>
+      <div class="period-toggle">
+        <button class="active" id="periodHarian" data-period="harian">Harian</button>
+        <button id="periodMingguan" data-period="mingguan">Mingguan</button>
+      </div>
+    </div>
     <div class="chart-wrap" id="chartWrap"></div>
-    <div class="legend">
+    <div class="legend" id="chartLegend">
       <span><i class="dot prev"></i>Bulan sebelumnya</span>
       <span><i class="dot curr"></i>Bulan ini</span>
+    </div>
+  </div>
+
+  <div class="card" id="dayNavCard">
+    <div class="day-nav">
+      <button id="prevDay"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg></button>
+      <div class="day-nav-label">
+        <span id="dayLabel">14 Agustus 2026</span>
+        <span class="today-pill" id="todayPill">Hari ini</span>
+      </div>
+      <button id="nextDay"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18l6-6-6-6"/></svg></button>
     </div>
   </div>
 
@@ -291,8 +336,9 @@
   </div>
 
   <div class="card">
-    <div class="card-title">Transaksi bulan ini</div>
+    <div class="card-title" id="txTitle">Transaksi hari ini</div>
     <div id="txList" style="margin-top:10px;"></div>
+    <button class="detail-toggle" id="detailToggle">Lihat semua transaksi bulan ini</button>
   </div>
 </div>
 
@@ -353,6 +399,9 @@ let transactions = [];
 let currentType = "in"; // for the add-transaction form
 let viewType = "out"; // for hero/chart/category view
 let currentMonth = new Date().toISOString().slice(0,7); // YYYY-MM
+let chartPeriod = "harian"; // 'harian' | 'mingguan'
+let selectedDay = new Date().toISOString().slice(0,10); // YYYY-MM-DD
+let showFullMonth = false;
 
 const $ = (id) => document.getElementById(id);
 
@@ -373,6 +422,20 @@ function shiftMonth(key, delta){
 }
 function prevMonthKey(key){ return shiftMonth(key, -1); }
 function todayStr(){ return new Date().toISOString().slice(0,10); }
+function shiftDay(dateStr, delta){
+  const d = new Date(dateStr + "T00:00:00");
+  d.setDate(d.getDate()+delta);
+  return d.toISOString().slice(0,10);
+}
+function dayLabelFull(dateStr){
+  const d = new Date(dateStr + "T00:00:00");
+  return d.toLocaleDateString("id-ID", {day:"numeric", month:"long", year:"numeric"});
+}
+function lastNDays(n, endDateStr){
+  const arr = [];
+  for(let i=n-1; i>=0; i--) arr.push(shiftDay(endDateStr, -i));
+  return arr;
+}
 function escapeHtml(s){ const div=document.createElement("div"); div.textContent=s||""; return div.innerHTML; }
 
 function populateKategori(){
@@ -436,47 +499,88 @@ function render(){
   $("heroLabel").textContent = viewType === "in" ? "Kamu udah nerima" : "Kamu udah ngeluarin";
   $("heroValue").textContent = formatRupiah(heroTotal);
 
-  // Grafik mingguan
-  const buckets = weekBuckets(currentMonth);
-  const prevKey = prevMonthKey(currentMonth);
-  const values = buckets.map(b=>({
-    curr: sumForRange(currentMonth, viewType, b.start, b.end),
-    prev: sumForRange(prevKey, viewType, b.start, b.end),
-    label: b.start + "-" + b.end
-  }));
-  const maxVal = Math.max(1, ...values.flatMap(v=>[v.curr, v.prev]));
+  // Grafik: Harian atau Mingguan
   const chartWrap = $("chartWrap");
   chartWrap.innerHTML = "";
-  const lastIdx = values.length - 1;
-  values.forEach((v, i)=>{
-    const col = document.createElement("div");
-    col.className = "chart-col";
-    const prevH = Math.max(3, (v.prev/maxVal)*100);
-    const currH = Math.max(3, (v.curr/maxVal)*100);
-    col.innerHTML = `
-      <div class="bars">
-        <div class="bar prev" style="height:${prevH}%"></div>
-        <div class="bar curr${i===lastIdx?' active':''}" style="height:${currH}%"></div>
-      </div>
-      <div class="wk-label">${v.label}</div>
-    `;
-    chartWrap.appendChild(col);
-  });
-  const thisWeek = values[values.length-1];
-  $("weeklyTitle").textContent = (viewType==="in" ? "Pemasukan" : "Pengeluaran") + " minggu ini";
-  $("weeklyAmount").textContent = formatRupiah(thisWeek ? thisWeek.curr : 0);
+  let periodTotal = 0;
+
+  if(chartPeriod === "harian"){
+    $("chartLegend").style.display = "none";
+    const days = lastNDays(7, todayStr());
+    const dayValues = days.map(d=>({
+      date: d,
+      curr: transactions.filter(t=>t.type===viewType && t.date===d).reduce((s,t)=>s+t.amount,0)
+    }));
+    const maxVal = Math.max(1, ...dayValues.map(v=>v.curr));
+    dayValues.forEach(v=>{
+      const col = document.createElement("div");
+      col.className = "chart-col";
+      const h = Math.max(3, (v.curr/maxVal)*100);
+      const dObj = new Date(v.date + "T00:00:00");
+      const dayNum = dObj.getDate();
+      const isSelected = v.date === selectedDay;
+      col.innerHTML = `
+        <div class="bars">
+          <div class="bar curr${isSelected?' active':''}" style="height:${h}%; cursor:pointer;" data-date="${v.date}"></div>
+        </div>
+        <div class="wk-label">${dayNum}</div>
+      `;
+      col.querySelector(".bar").addEventListener("click", ()=>{ selectedDay = v.date; showFullMonth = false; render(); });
+      chartWrap.appendChild(col);
+    });
+    periodTotal = dayValues.find(v=>v.date===todayStr())?.curr || 0;
+    $("weeklyTitle").textContent = (viewType==="in" ? "Pemasukan" : "Pengeluaran") + " hari ini";
+  } else {
+    $("chartLegend").style.display = "flex";
+    const buckets = weekBuckets(currentMonth);
+    const prevKey = prevMonthKey(currentMonth);
+    const values = buckets.map(b=>({
+      curr: sumForRange(currentMonth, viewType, b.start, b.end),
+      prev: sumForRange(prevKey, viewType, b.start, b.end),
+      label: b.start + "-" + b.end
+    }));
+    const maxVal = Math.max(1, ...values.flatMap(v=>[v.curr, v.prev]));
+    const lastIdx = values.length - 1;
+    values.forEach((v, i)=>{
+      const col = document.createElement("div");
+      col.className = "chart-col";
+      const prevH = Math.max(3, (v.prev/maxVal)*100);
+      const currH = Math.max(3, (v.curr/maxVal)*100);
+      col.innerHTML = `
+        <div class="bars">
+          <div class="bar prev" style="height:${prevH}%"></div>
+          <div class="bar curr${i===lastIdx?' active':''}" style="height:${currH}%"></div>
+        </div>
+        <div class="wk-label">${v.label}</div>
+      `;
+      chartWrap.appendChild(col);
+    });
+    periodTotal = values[values.length-1] ? values[values.length-1].curr : 0;
+    $("weeklyTitle").textContent = (viewType==="in" ? "Pemasukan" : "Pengeluaran") + " minggu ini";
+  }
+  $("weeklyAmount").textContent = formatRupiah(periodTotal);
+
+  // Navigasi hari
+  $("dayLabel").textContent = dayLabelFull(selectedDay);
+  $("todayPill").classList.toggle("show", selectedDay === todayStr());
+  $("dayNavCard").style.display = showFullMonth ? "none" : "block";
+
+  // Sumber data untuk kategori & daftar transaksi: harian atau sebulan penuh
+  const dayTx = transactions.filter(t=>t.date === selectedDay);
+  const baseTx = showFullMonth ? monthTx : dayTx;
+  const periodWord = showFullMonth ? "bulan ini" : "hari ini";
 
   // Kategori tertinggi
   $("catTitle").textContent = "Kategori " + (viewType==="in" ? "pemasukan" : "pengeluaran") + " tertinggi";
   const byCat = {};
-  monthTx.filter(t=>t.type===viewType).forEach(t=>{
+  baseTx.filter(t=>t.type===viewType).forEach(t=>{
     byCat[t.category] = (byCat[t.category]||0) + t.amount;
   });
   const catTotal = Object.values(byCat).reduce((s,v)=>s+v,0);
   const catEntries = Object.entries(byCat).sort((a,b)=>b[1]-a[1]).slice(0,5);
   const catList = $("catList");
   if(catEntries.length===0){
-    catList.innerHTML = `<div class="empty-mini">Belum ada catatan bulan ini.</div>`;
+    catList.innerHTML = `<div class="empty-mini">Belum ada catatan ${periodWord}.</div>`;
   } else {
     catList.innerHTML = catEntries.map(([cat, amt])=>{
       const meta = CATEGORY_META[cat] || CATEGORY_META["Lainnya"];
@@ -497,13 +601,15 @@ function render(){
     }).join("");
   }
 
-  // Daftar transaksi bulan ini
+  // Daftar transaksi
+  $("txTitle").textContent = showFullMonth ? "Transaksi bulan ini" : "Transaksi hari ini";
+  $("detailToggle").textContent = showFullMonth ? "Tampilkan harian saja" : "Lihat semua transaksi bulan ini";
   const txList = $("txList");
-  const sortedMonthTx = [...monthTx].sort((a,b)=> a.date===b.date ? b.createdAt-a.createdAt : (a.date<b.date?1:-1));
-  if(sortedMonthTx.length===0){
-    txList.innerHTML = `<div class="empty-mini">Belum ada transaksi bulan ini.</div>`;
+  const sortedTx = [...baseTx].sort((a,b)=> a.date===b.date ? b.createdAt-a.createdAt : (a.date<b.date?1:-1));
+  if(sortedTx.length===0){
+    txList.innerHTML = `<div class="empty-mini">Belum ada transaksi ${periodWord}.</div>`;
   } else {
-    txList.innerHTML = sortedMonthTx.map(t=>{
+    txList.innerHTML = sortedTx.map(t=>{
       const meta = CATEGORY_META[t.category] || CATEGORY_META["Lainnya"];
       const d = new Date(t.date + "T00:00:00");
       const dateLabel = d.toLocaleDateString("id-ID", {day:"2-digit", month:"short"});
@@ -689,6 +795,23 @@ $("prevMonth").addEventListener("click", ()=>{ currentMonth = shiftMonth(current
 $("nextMonth").addEventListener("click", ()=>{ currentMonth = shiftMonth(currentMonth, 1); render(); });
 $("tabOut").addEventListener("click", ()=> setViewType("out"));
 $("tabIn").addEventListener("click", ()=> setViewType("in"));
+
+/* ---------- Periode grafik & navigasi hari ---------- */
+$("periodHarian").addEventListener("click", ()=>{
+  chartPeriod = "harian";
+  $("periodHarian").classList.add("active");
+  $("periodMingguan").classList.remove("active");
+  render();
+});
+$("periodMingguan").addEventListener("click", ()=>{
+  chartPeriod = "mingguan";
+  $("periodMingguan").classList.add("active");
+  $("periodHarian").classList.remove("active");
+  render();
+});
+$("prevDay").addEventListener("click", ()=>{ selectedDay = shiftDay(selectedDay, -1); render(); });
+$("nextDay").addEventListener("click", ()=>{ selectedDay = shiftDay(selectedDay, 1); render(); });
+$("detailToggle").addEventListener("click", ()=>{ showFullMonth = !showFullMonth; render(); });
 
 /* ---------- Bottom sheet & form ---------- */
 $("fabBtn").addEventListener("click", ()=>{
